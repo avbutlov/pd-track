@@ -1,0 +1,144 @@
+// Protocol Deviation Tracker — Database Schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DeviationStatus {
+  open
+  in_review
+  capa_assigned
+  closed
+}
+
+enum DeviationCategory {
+  MISSED_VISIT
+  WINDOW_VIOLATION
+  DOSING_ERROR
+  ICF_ISSUE
+  SAMPLE_HANDLING
+  ELIGIBILITY
+  PROCEDURE_DEVIATION
+  DOCUMENTATION
+  OTHER
+}
+
+enum Severity {
+  major
+  minor
+}
+
+enum CAPAStatus {
+  pending
+  in_progress
+  completed
+  overdue
+}
+
+/// Площадка клинического исследования
+model Site {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  location  String
+  createdAt DateTime @default(now())
+
+  deviations Deviation[]
+
+  @@map("sites")
+}
+
+/// Отклонение от протокола
+model Deviation {
+  id                Int               @id @default(autoincrement())
+  deviationNumber   String            @unique
+  siteId            Int
+  patientId         String
+  deviationDate     DateTime
+  description       String
+  category          DeviationCategory
+  severity          Severity?
+  severityRationale String?
+  status            DeviationStatus   @default(open)
+  reportedAt        DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  site              Site               @relation(fields: [siteId], references: [id])
+  capas             CAPA[]
+  aiClassifications AIClassification[]
+
+  @@index([siteId])
+  @@index([category])
+  @@index([severity])
+  @@index([status])
+  @@index([deviationDate])
+  @@map("deviations")
+}
+
+/// Корректирующее и предупреждающее действие (CAPA)
+model CAPA {
+  id              Int        @id @default(autoincrement())
+  deviationId     Int
+  description     String
+  assignedTo      String
+  dueDate         DateTime
+  status          CAPAStatus @default(pending)
+  completionNotes String?
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  deviation Deviation @relation(fields: [deviationId], references: [id], onDelete: Cascade)
+
+  @@index([deviationId])
+  @@index([status])
+  @@map("capas")
+}
+
+/// Результат AI-классификации
+model AIClassification {
+  id            Int      @id @default(autoincrement())
+  deviationId   Int
+  severity      Severity
+  rationale     String
+  confidence    Float
+  riskFactors   String[]
+  regulatoryRef String?
+  modelUsed     String
+  createdAt     DateTime @default(now())
+
+  deviation Deviation @relation(fields: [deviationId], references: [id], onDelete: Cascade)
+
+  @@index([deviationId])
+  @@map("ai_classifications")
+}
+
+/// Сохранённый AI-отчёт
+model Report {
+  id         Int      @id @default(autoincrement())
+  title      String
+  content    String
+  startDate  DateTime
+  endDate    DateTime
+  locale     String   @default("en")
+  statistics Json?
+  createdAt  DateTime @default(now())
+
+  @@map("reports")
+}
+
+/// Результат AI-анализа паттернов
+model PatternAnalysisResult {
+  id        Int      @id @default(autoincrement())
+  data      Json
+  locale    String   @default("en")
+  createdAt DateTime @default(now())
+
+  @@map("pattern_analysis_results")
+}
