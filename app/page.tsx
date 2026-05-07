@@ -1,19 +1,21 @@
-import { Button } from "@/components/ui/button"
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardContent } from "@/components/dashboard/dashboard-content";
 
-export default function Page() {
+function DashboardSkeleton() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
+    <div className="space-y-6">
+      <div><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-80 mt-1" /></div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-[120px]" />)}</div>
+      <div className="grid gap-4 md:grid-cols-2"><Skeleton className="h-[350px]" /><Skeleton className="h-[350px]" /></div>
     </div>
-  )
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  );
 }
