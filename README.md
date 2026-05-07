@@ -1,21 +1,161 @@
-# Next.js template
+# PD Tracker (Protocol Deviation Tracker)
 
-This is a Next.js template with shadcn/ui.
+Полноценный веб-сервис для фармацевтической компании полного цикла: единый учет отклонений от протокола, AI-классификация, CAPA-управление, аналитика и формирование отчетности для спонсора/этического комитета.
 
-## Adding components
+## Функциональное покрытие
 
-To add components to your app, run the following command:
+- Регистрирует protocol deviations по площадкам и пациентам.
+- Поддерживает CAPA (Corrective and Preventive Actions) с контрольными сроками.
+- Строит операционную аналитику (KPI, распределения, тренды).
+- Использует AI через OpenRouter для:
+  - классификации серьезности (`major` / `minor`);
+  - подсказок по CAPA;
+  - поиска паттернов;
+  - генерации отчетов для спонсора.
+
+## Технологический стек
+
+- **Frontend + BFF:** Next.js (App Router), React, TypeScript.
+- **UI:** shadcn/ui, Radix, Tailwind CSS.
+- **Data layer:** PostgreSQL + Prisma ORM.
+- **AI integration:** OpenRouter API (JSON-schema output).
+- **Charts/Reports:** Recharts, react-pdf.
+- **State/data fetching:** React Query.
+
+### Почему выбран этот стек
+
+- Позволяет сделать единый сервис (UI + API) без отдельного backend-репозитория.
+- Ускоряет доставку MVP в заданный срок.
+- Дает типобезопасность (TypeScript + Prisma) и быстрые итерации.
+
+## Архитектура
+
+Приложение построено как монолит Next.js с разделением по слоям:
+
+- `app/`  
+  UI-страницы и server/api routes (`/api/*`) как backend-слой.
+- `components/`  
+  Экранные и переиспользуемые UI-компоненты (dashboard, deviations, analytics, reports, ui).
+- `lib/`  
+  Prisma client, AI-клиент и схемы, доменные типы, утилиты.
+- `services/`  
+  Клиентские функции вызова API.
+- `prisma/`  
+  Схема БД, миграции и сидирование.
+- `i18n/`  
+  Локализация интерфейса (`ru`, `en`).
+- `constants/`  
+  Роуты, HTTP-коды, app-константы и настройки AI.
+
+### Ключевые доменные сущности
+
+- `Site` — площадка исследования.
+- `Deviation` — отклонение от протокола.
+- `CAPA` — корректирующее/предупреждающее действие.
+- `AIClassification` — результат AI-классификации отклонения.
+- `Report` — сохраненный AI-отчет.
+
+### Поток данных (high-level)
+
+1. Пользователь работает с UI в `app/*`.
+2. UI вызывает `services/api.ts`.
+3. Вызов идет в `app/api/*` route handlers.
+4. Route handlers работают с PostgreSQL через Prisma.
+5. Для AI-функций route handlers вызывают `lib/ai/openrouter.ts`.
+6. Результаты возвращаются в UI и/или сохраняются в БД.
+
+## Принятые архитектурные решения
+
+- **Next.js как единая точка входа (UI + API).**  
+  Упрощает деплой, снижает накладные расходы на инфраструктуру и ускоряет feature-delivery.
+
+- **Prisma + PostgreSQL для доменной модели.**  
+  Явная схема, миграции, типобезопасный доступ к данным и простой контроль связей между сущностями.
+
+- **AI-вывод в структурированном формате (JSON schema).**  
+  Повышает предсказуемость интеграции и уменьшает риск "свободного" текста, который трудно валидировать.
+
+- **Разделение аналитики и операционных данных.**  
+  Отдельные API для трендов/отчетов упрощают развитие отчетности без усложнения CRUD-логики.
+
+- **I18n на уровне UI и AI-эндпоинтов.**  
+  Поддерживает мультиязычность интерфейса и генерации AI-контента (ru/en).
+
+## API (основные эндпоинты)
+
+- `GET/POST /api/deviations` — список/создание отклонений.
+- `GET/PUT/DELETE /api/deviations/:id` — карточка отклонения и обновления.
+- `GET/POST /api/capa` и `PUT /api/capa/:id` — CAPA-процесс.
+- `GET /api/analytics` — KPI и агрегаты.
+- `POST /api/ai/classify` — AI-классификация отклонения.
+- `POST /api/ai/suggest-capa` — AI-подсказки CAPA.
+- `POST /api/ai/patterns` — AI-анализ паттернов.
+- `POST /api/ai/report`, `GET /api/reports` — генерация и история отчетов.
+
+## AI-возможности по ТЗ
+
+- Классификация серьёзности отклонения с объяснением критериев (`/api/ai/classify`).
+- Выявление повторяющихся паттернов по площадкам и категориям (`/api/ai/patterns`).
+- Предложение CAPA по типу отклонения (`/api/ai/suggest-capa`).
+- Генерация текстовой сводки для периодического отчета (`/api/ai/report`).
+
+## Требования к окружению
+
+- Node.js 20+ (рекомендуется актуальная LTS).
+- PostgreSQL (локально/в контейнере/managed).
+- `OPENROUTER_API_KEY` для AI-функций.
+- `DATABASE_URL` для подключения базы данных.
+
+## Быстрый запуск
+
+1. Установить зависимости:
 
 ```bash
-npx shadcn@latest add button
+npm install
 ```
 
-This will place the ui components in the `components` directory.
+2. Создать `.env` в корне проекта:
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME
+OPENROUTER_API_KEY=your_openrouter_key
 ```
+
+3. Применить схему БД:
+
+```bash
+npm run db:push
+```
+
+или через миграции:
+
+```bash
+npm run db:migrate
+```
+
+4. (Опционально) наполнить демо-данными:
+
+```bash
+npm run db:seed
+```
+
+5. Запустить приложение:
+
+```bash
+npm run dev
+```
+
+6. Открыть в браузере:
+
+```text
+http://localhost:3000
+```
+
+## Демо-данные
+
+Синтетический набор для демонстрации готов в `prisma/seed.ts` и покрывает:
+
+- несколько площадок из разных регионов;
+- разные категории отклонений;
+- распределение `major/minor`;
+- разные статусы `Deviation` и `CAPA`;
