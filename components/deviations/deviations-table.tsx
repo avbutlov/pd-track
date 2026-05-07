@@ -279,7 +279,7 @@ export function DeviationsTable() {
                         {dev._count?.capas ? (
                           <Badge variant="secondary">{dev._count.capas}</Badge>
                         ) : (
-                          "—"
+                          <span className="ml-1.5">—</span>
                         )}
                       </TableCell>
                     </TableRow>
